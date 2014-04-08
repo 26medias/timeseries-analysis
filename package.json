@@ -1,0 +1,36 @@
+{
+	"author": {
+		"name": "Julien Loutre",
+		"email": "julien@twenty-six-medias.com",
+		"url": "http://www.twenty-six-medias.com/"
+	},
+	"name": "timeseries-analysis",
+	"description": "timeseries-analysis",
+	"version": "1.0.8",
+	"homepage": "https://github.com/26medias/timeseries-analysis",
+	"licenses": [
+	{
+		"type": "MIT",
+		"url": "https://raw.github.com/26medias/timeseries-analysis/master/LICENSE"
+	}
+	],
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/26medias/timeseries-analysis.git"
+	},
+	"main": "timeseries-analysis.js",
+	"engines": {
+		"node": "*"
+	},
+	"dependencies": {
+		"underscore": "latest",
+		"google-image-chart": "latest"
+	},
+	"devDependencies": {},
+	"readmeFilename": "README.md",
+	"bugs": {
+		"url": "https://github.com/26medias/timeseries-analysis/issues"
+	},
+	"_id": "timeseries-analysis@1.0.8",
+	"_from": "timeseries-analysis@latest"
+}
