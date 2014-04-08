@@ -209,7 +209,5 @@ t.smoother({period:10}).noiseData().smoother({period:5});
 ```
 ![chart](https://chart.googleapis.com/chart?cht=lc&chs=800x200&chxt=y&chd=s:VVcgnsz697zlWQTXhqy2yutx2898xhPBANemolhbV,VV&chco=76a4fb,ABABAB&chm=&chds=-0.5213070211063218,1.0039088636758096&chxr=0,-0.5213070211063218,1.0039088636758096,10)
 
-
-
 ## License ##
-FormJS is free for non-commercial use under the [Creative Commons Attribution-NonCommercial 3.0 License](http://creativecommons.org/licenses/by-nc/3.0/legalcode). You are also allowed to edit the source code that is included along with the download. If you are a non-profit, student or an educational institute, feel free to download and use it in your projects.
+timeseries-analysis is free for non-commercial use under the [Creative Commons Attribution-NonCommercial 3.0 License](http://creativecommons.org/licenses/by-nc/3.0/legalcode). You are also allowed to edit the source code that is included along with the download. If you are a non-profit, student or an educational institute, feel free to download and use it in your projects.
