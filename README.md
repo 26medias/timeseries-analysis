@@ -209,5 +209,190 @@ t.smoother({period:10}).noiseData().smoother({period:5});
 ```
 ![chart](https://chart.googleapis.com/chart?cht=lc&chs=800x200&chxt=y&chd=s:VVcgnsz697zlWQTXhqy2yutx2898xhPBANemolhbV,VV&chco=76a4fb,ABABAB&chm=&chds=-0.5213070211063218,1.0039088636758096&chxr=0,-0.5213070211063218,1.0039088636758096,10)
 
+
+
+## Forecasting ##
+This package allows you to easily forecast future values by calculating the Auto-Regression (AR) coefficients for your data.
+
+The AR coefficients can be calculated using both the **Least Square** and using the **Max Entropy** methods.
+
+Both methods have a `degree` parameter that let you define what AR degree you wish to calculate. The default is 5.
+
+*Both methods were ported to Javascript for this package from [Paul Bourke's C code](http://paulbourke.net/miscellaneous/ar/). Credit to Alex Sergejew, Nick Hawthorn and Rainer Hegger for the original code of the Max Entropy method. Credit to Rainer Hegger for the original code of the Least Square method.*
+
+#### Calculating the AR coefficients ####
+Let's generate a simple sin wave:
+```
+var t     	= new ts.main(ts.adapter.sin({cycles:4}));
+```
+
+![chart](https://chart.googleapis.com/chart?chm=&cht=lc&chs=800x200&chxt=y&chd=s:999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999&chco=76a4fb&chds=-100,100&chxr=0,-100,100,10)
+
+Now we get the coefficients (default: degree 5) using the Max Entropy method:
+```
+var coeffs = t.ARMaxEntropy();
+/* returns:
+[
+    -4.996911311490191,
+    9.990105570823655,
+    -9.988844272139962,
+    4.995018589153196,
+    -0.9993685753936928
+]
+*/
+```
+
+Now let's calculate the coefficents using the Least Square method:
+```
+var coeffs = t.ARLeastSquare();
+/* returns:
+[
+    -0.1330958776419982,
+    1.1764459735164208,
+    1.3790630711914558,
+    -0.7736249950234015,
+    -0.6559429479401289
+]
+*/
+```
+
+To specify the degree:
+```
+var coeffs = t.ARMaxEntropy({degree: 3});   // Max Entropy method, degree 3
+var coeffs = t.ARLeastSquare({degree: 7});  // Least Square method, degree 7.
+```
+
+
+Now, calculating the AR coefficients of the entire dataset might not be really useful for any type of real-life use.
+You can specify what data you want to use to calculate the AR coefficients, allowing to use only a subset of your dataset using the `data` parameter:
+```
+// We'll use only the first 10 datapoints of the current data
+var coeffs = t.ARMaxEntropy({
+    data:   t.data.slice(0, 10)
+});
+/* returns:
+[
+    -4.728362307674655,
+    9.12909005456654,
+    -9.002790480535127,
+    4.536763868018368,
+    -0.9347010551658372
+]
+*/
+```
+
+
+#### Calculating the forecasted value ####
+Now that we know how to calculate the AR coefficients, let's see how we can forecast a future value.
+
+For this example, we are going to forecast the value of the 11th datapoint's value, based on the first 10 datapoints' values. We'll keep using the same sin wave.
+
+```
+// The sin wave
+var t     	= new ts.main(ts.adapter.sin({cycles:4}));
+
+// We're going to forecast the 11th datapoint
+var forecastDatapoint	= 11;	
+
+// We calculate the AR coefficients of the 10 previous points
+var coeffs = t.ARMaxEntropy({
+	data:	t.data.slice(0,10)
+});
+
+// Output the coefficients to the console
+console.log(coeffs);
+
+// Now, we calculate the forecasted value of that 11th datapoint using the AR coefficients:
+var forecast	= 0;	// Init the value at 0.
+for (var i=0;i<coeffs.length;i++) {	// Loop through the coefficients
+	forecast -= t.data[10-i][1]*coeffs[i];
+	// Explanation for that line:
+	// t.data contains the current dataset, which is in the format [ [date, value], [date,value], ... ]
+	// For each coefficient, we substract from "forecast" the value of the "N - x" datapoint's value, multiplicated by the coefficient, where N is the last known datapoint value, and x is the coefficient's index.
+}
+console.log("forecast",forecast);
+// Output: 92.7237232432106
+```
+
+Based on the value of the first 10 datapoints of the sin wave, out forecast indicates the 11th value should be around 92.72 so let's check that visually. I've re-generated the same sin wave, adding a red dot on the 11th point:
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,11.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999999999888877665544332100zyxwwvutsrqponmlkjihgfdcbaZYXWVUTSRQPONNMLKJJIHGGFFEEDDCCBBBBAAAAAAAAAAABBBBCCDDEEFFGGHIJJKLMNNOPQRSTUVWXYZabcdeghijklmnopqrstuvwwxyz00123344556677888899999&chco=76a4fb&chds=-100,100&chxr=0,-100,100,10)
+
+As we can see on the chart, the 11th datapoint's value seems to be around 92, as was forecasted.
+
+
+#### Forecast accuracy ####
+In order to check the forecast accuracy on more complex data, you can access the `sliding_regression_forecast` method, which will use a sliding window to forecast all of the datapoints in your dataset, one by one. You can then chart this forecast and compare it t the original data.
+
+First, let's generate a dataset that is a little bit more complex data than a regular sin wave. We'll increase the sin wave's frequency over time using the `inertia` parameter to control the increase:
+
+```
+var t     	= new ts.main(ts.adapter.sin({cycles:10, inertia:0.2}));
+```
+![chart](https://chart.googleapis.com/chart?chm=&cht=lc&chs=800x200&chxt=y&chd=s:99999887765320zwuspmjfcZVSOLIGDCAAABDFJNRWchnsx25899863ysleXQKFBABDIOWenv269983xpfVNGBACIQalv38971shVLDABHRdq0796znaNEACKWjw6996wiUHBBJWlz895uePEAFSiy794raLBBLct694pXHAESl1993nUFAIau7&chco=76a4fb&chds=-99.95065603657316,100&chxr=0,-99.95065603657316,100,10)
+
+
+Now, we generate the sliding window forecast on the data, and chart the results:
+```
+// Our sin wave with its frequency increase
+var t     	= new ts.main(ts.adapter.sin({cycles:10, inertia:0.2}));
+// We are going to use the past 20 datapoints to predict the n+1 value, with an AR degree of 5 (default)
+// The default method used is Max Entropy
+t.sliding_regression_forecast({sample:20, degree: 5});
+// Now we chart the results, comparing the the original data.
+// Since we are using the past 20 datapoints to predict the next one, the forecasting only start at datapoint #21. To show that on the chart, we are displaying a red dot at the #21st datapoint:
+var chart_url = t.chart({main:true,points:[{color:'ff0000',point:21,serie:0}]});
+```
+
+And here is the result:
+
+*   The red line is the original data.
+*   The blue line is the forecasted data.
+*   The red dot indicate at which point the forecast starts.
+
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,21.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:7777666544310zxvtqolifbYVROLIGECBBBCDGJNRWbgmrw03677651wrleXQKGCBBDIOWemu047652wneVNGCBDIQZku27850rgVLEACHRdpz574ymZNFBDJVjw4743xjUJCCJUjy782ufQEAFQgw793tdMDCJZr571rYJCGRj093wnWGCKXp4,7777666544310zxvtqolifbYVROLIGECBBBCDGJNRWbgmrw03677641wqkdWQKFCBBEIOWemt047752vneVNGCBDIQakt1675zqgVLEBCIRdoy574xmZOFBDKVjv4774uhTIBCJWkx573sdPEBGShw572qaLCCLbs472oXIBFSk0771mTFBJas5&chco=76a4fb,ac7cc7&chds=-102.46755009608293,107.54738106314204&chxr=0,-102.46755009608293,107.54738106314204,10)
+
+Despite the frequency rising with time, the forecast is still pretty accurate. For the first 2 cycles, we can barely see the difference between the original data and the forecasted data.
+
+
+Now, let's try on a more complex data.
+
+Wee're going to generate a dataset using ![sin(x)+cos(x*3)-sin(x 2.4)*100](http://rogercortesi.com/eqn/tempimagedir/eqn3983.png), with a frequency increasing with time.
+
+```
+var t     	= new ts.main(ts.adapter.complex({cycles:10, inertia:0.1}));
+```
+![chart](https://chart.googleapis.com/chart?chm=&cht=lc&chs=800x200&chxt=y&chd=s:mmllkjihgfecbZYWUSRQPONOOPRUXaejnsx15799851vpiaTMGCAACGLRXdhjjhdXRKFBACFLSYfmicWROOSakv4882reRGABHQahjgZPGBBGPZmgYQNScq395tcLBBKWgjeTHBCLXmeUORdu78vbIAFTgjbNCBKYmdROXq68sUDCPejaKBESmbPPf09xXDCShhSDCPmaOSn75hHBQhgQBFWmZOWv9vRAKeiRBFYmYNb18jGDXjXDEXmXOg53XALheJBS&chco=76a4fb&chds=-205.05356081386265,286.52738649942415&chxr=0,-205.05356081386265,286.52738649942415,10)
+
+Now we forecast the same way we did in the previous example on the sin wave:
+
+```
+var t         = new ts.main(ts.adapter.complex({cycles:10, inertia:0.1}));
+// We are going to use the past 20 datapoints to predict the n+1 value, with an AR degree of 5 (default)
+// The default method used is Max Entropy
+t.sliding_regression_forecast({sample:20, degree: 5});
+// Now we chart the results, comparing the the original data.
+// Since we are using the past 20 datapoints to predict the next one, the forecasting only start at datapoint #21. To show that on the chart, we are displaying a red dot at the #21st datapoint:
+var chart_url = t.chart({main:true,points:[{color:'ff0000',point:21,serie:0}]});
+```
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,21.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:onnmmlkkjhgfecaZXWUTSSRRSTVXadhlpty15799852xrkdWQLHFFHKPVafjlljgaUOJGFGKPVbhlvXaWSQSWenw22yrhWLFFLUdknkcTKFFKTcjwXTOTaktzzsgSIGNZlqmcPFHQbkyPRRakuwlYNHNYjqnbTQXjorUMThtvlWGJYlumZOReovUKYnshPDGYpqcNMXktQUdtteNJaosbOQhqnVPetoSAMkqaJNenhJToyfNNjwgLJhqfNQusMHQruYNa,onnmmlkkjhgfecaZXWUTSSRRSTVXadhlpuy25799852xrkdWQLHFFHKPVafjlljfaUOJGFGKPVbhokfZURSWdmw4983tgUKFGLUdjmjcTKGGKTcoiaURVfs396uePGGOZjlgWLFHPaohXRUgv78weMFKWileRHGObofVRar68uYHGShldOFJWoeTTi19yaIHVjjVIGTodSWp75jLGUjjTGJZocRZw9wVFOhkVGKbobRe18lKHamaIIaoaRi63aFPjhNGV&chco=76a4fb,ac7cc7&chds=-247.32087831139637,286.52738649942415&chxr=0,-247.32087831139637,286.52738649942415,10)
+
+
+Now let's try the same thing, using the Least Square method rather than the default Max Entropy method:
+
+```
+var t         = new ts.main(ts.adapter.complex({cycles:10, inertia:0.1}));
+// We are going to use the past 20 datapoints to predict the n+1 value, with an AR degree of 5 (default)
+// The default method used is Max Entropy
+t.sliding_regression_forecast({sample:20, degree: 5, method: 'ARLeastSquare'});
+// Now we chart the results, comparing the the original data.
+// Since we are using the past 20 datapoints to predict the next one, the forecasting only start at datapoint #21. To show that on the chart, we are displaying a red dot at the #21st datapoint:
+var chart_url = t.chart({main:true,points:[{color:'ff0000',point:21,serie:0}]});
+```
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,21.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:rqqqpponmlkjihfedbaZYYXXYZacfhloswz35899852yupjcVRNLLNRVafknpqokfaVQONORWbgloulaMWXZdjqwzzvpgXRMMQYiqsphYROOSZgnxeTDXhow0zsiYRQWgotrlYNOWgoybcLdqxxpdTRWhqupcVTbiqvhWQkzphLEQhstjXRUentaUVs2ufORguugUUgqxcSWtrQACZslYOTfnmSWq1xfSaqvhRSismSauylQSmynVUjtmVasvcNSqraRf,rqqqpponmlkjihfedbaZYYXXYZacfhloswz35899863ytnhcWSPNNORVafjnppnkfaVRONORVbglrojeaYYbhpy5984vkaSNNSZhnpmgZSNNSZgrmfZXbju496wjWOOUempkcSNOVfrlcYakx78yiTNRcmpiXOOVgrjaYfu68wdPOYlphVNQbriZZl29zfPPbnnbPOZrhYbs76nSNZnmZOQergXey9yaNVloaORgrfXi38pRPfpfPQfrfYm64fNWnlUNb&chco=76a4fb,ac7cc7&chds=-334.6878609191184,286.52738649942415&chxr=0,-334.6878609191184,286.52738649942415,10)
+
+
+
+
+
 ## License ##
 timeseries-analysis is free for non-commercial use under the [Creative Commons Attribution-NonCommercial 3.0 License](http://creativecommons.org/licenses/by-nc/3.0/legalcode). You are also allowed to edit the source code that is included along with the download. If you are a non-profit, student or an educational institute, feel free to download and use it in your projects.
