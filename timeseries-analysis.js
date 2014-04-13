@@ -122,24 +122,58 @@ timeseries.prototype.max = function() {
 	var array = this.toArray();
 	return _.max(array);
 }
-timeseries.prototype.mean = function() {
+timeseries.prototype.mean = function(data) {
+	if (!data) {
+		var data = this.data;
+	}
 	var sum 	= 0;
 	var n 		= 0;
-	_.each(this.data, function(datapoint) {
+	_.each(data, function(datapoint) {
 		sum += datapoint[1];
 		n++;
 	});
 	return sum/n;
 }
-timeseries.prototype.stdev = function() {
+timeseries.prototype.stdev = function(data) {
+	if (!data) {
+		var data = this.data;
+	}
 	var sum 	= 0;
 	var n 		= 0;
 	var mean 	= this.mean();
-	_.each(this.data, function(datapoint) {
+	_.each(data, function(datapoint) {
 		sum += (datapoint[1]-mean)*(datapoint[1]-mean);
 		n++;
 	});
 	return Math.sqrt(sum/n);
+}
+
+
+// Offet the data
+timeseries.prototype.offset = function(value, data, ret) {
+	if (!data) {
+		var data = this.data;
+	}
+	var i;
+	var j;
+	var l 	= data.length;
+	var sum	= 0;
+	
+	// Reset the buffer
+	this.buffer 	= data.slice(0);
+	
+	for (i=0;i<l;i++) {
+		this.buffer[i] = [
+			this.buffer[i][0],
+			this.buffer[i][1]+value
+		];
+	}
+	if (!ret) {
+		this.data = this.buffer;
+		return this;
+	} else {
+		return this.buffer;
+	}
 }
 
 
@@ -310,27 +344,6 @@ timeseries.prototype.smoother = function(options) {
 				(this.buffer[i-2][1]+this.buffer[i][1])/2
 			];
 		}
-	}
-	this.data = this.buffer;
-	return this;
-}
-
-
-// Offet the data
-timeseries.prototype.offset = function(value) {
-	var i;
-	var j;
-	var l 	= this.data.length;
-	var sum	= 0;
-	
-	// Reset the buffer
-	this.buffer 	= this.data.slice(0);
-	
-	for (i=0;i<l;i++) {
-		this.buffer[i] = [
-			this.buffer[i][0],
-			this.buffer[i][1]+value
-		];
 	}
 	this.data = this.buffer;
 	return this;
@@ -601,9 +614,10 @@ timeseries.prototype.outliers = function(options) {
 timeseries.prototype.regression_forecast = function(options) {
 	options = _.extend({
 		method:		'ARMaxEntropy',	// ARMaxEntropy | ARLeastSquare
-		sample:		50,
-		start:		100,
-		n:			5
+		sample:		50,		// points int he sample
+		start:		100,	// Where to start
+		n:			5,		// How many points to forecast
+		degree:		5
 	},options);
 	
 	var i;
@@ -615,31 +629,147 @@ timeseries.prototype.regression_forecast = function(options) {
 	var backup 	= this.clone();
 	var buffer 	= this.clone();
 	
-	var sample 		= buffer.slice(options.start-options.sample, options.start);
+	var sample 		= buffer.slice(options.start-1-options.sample, options.start);
 	
 	// The current data to process is only a sample of the real data.
 	this.data		= sample;
 	// Get the AR coeffs
-	var coeffs 		= this[options.method]();
+	var coeffs 		= this[options.method]({degree: options.degree});
+	console.log("coeffs",coeffs);
 	
-	
-	for (i=options.start+1;i<options.start+options.n;i++) {
+	for (i=options.start;i<options.start+options.n;i++) {
 		buffer[i][1]	= 0;
 		for (j=0;j<coeffs.length;j++) {
-			buffer[i][1] -= buffer[i-1-j][1]*coeffs[j];
-			console.log("buffer["+i+"][1]",buffer[i][1]);
+			if (options.method == 'ARMaxEntropy') {
+				buffer[i][1] -= buffer[i-1-j][1]*coeffs[j];
+			} else {
+				buffer[i][1] += buffer[i-1-j][1]*coeffs[j];
+			}
 		}
-		/*
-		buffer[i+1][1]	= 0; //backup[i][1]*1;
-		for (j=0;j<coeffs.length;j++) {
-			buffer[i+1][1] -= backup[i-j][1]*coeffs[j];
-		}
-		*/
+		console.log("buffer["+i+"][1]",buffer[i][1]);
 	}
 	this.data = buffer;
 	this.offset(mean);
 	
 	return this;
+}
+
+timeseries.prototype.regression_forecast_optimize = function(options) {
+	options = _.extend({
+		data:		this.data,
+		maxPct:		0.2,
+		maxSampleSize:	false
+	},options);
+	
+	var l 				= options.data.length;
+	
+	var maxSampleSize	= Math.round(l*options.maxPct);
+	if (options.maxSampleSize) {
+		maxSampleSize = Math.min(maxSampleSize, options.maxSampleSize);
+	}
+	
+	var maxDegree		= Math.round(maxSampleSize);
+	var methods			= ['ARMaxEntropy', 'ARLeastSquare'];
+	var ss;		// sample size
+	var deg;	// degree
+	var MSEData = [];
+	var i;
+	for (i=0;i<methods.length;i++) {
+		for (ss=3;ss<=maxSampleSize;ss++) {
+			for (deg=1;deg<=maxDegree;deg++) {
+				if (deg<=ss) {
+					var mse = this.regression_forecast_mse({
+						method:	methods[i],
+						sample:	ss,
+						degree:	deg,
+						data:	options.data
+					});
+					console.log("Trying method("+methods[i]+") degree("+deg+") sample("+ss+")\t"+mse);
+					if (!isNaN(mse)) {
+						MSEData.push({
+							MSE:	mse,
+							method:	methods[i],
+							degree:	deg,
+							sample:	ss
+						});
+					}
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	
+	// Now we sort by MSE
+	MSEData = MSEData.sort(function(a,b) {
+		return a.MSE>b.MSE;
+	});
+	
+	console.log("Best Settings: ",MSEData[0]);
+	
+	// Return the best settings
+	return MSEData[0];
+	
+}
+// Calculate the MSE for a forecast, for a set of parameters
+timeseries.prototype.regression_forecast_mse = function(options) {
+	options = _.extend({
+		method:		'ARMaxEntropy',	// ARMaxEntropy | ARLeastSquare
+		sample:		50,
+		degree:		5,
+		data:		this.data
+	},options);
+	
+	
+	var i;
+	var j;
+	var l 			= options.data.length;
+	
+	var mean		= this.mean(options.data);
+	options.data 	= this.offset(-mean, options.data, true);
+	
+	var backup 		= _.map(options.data, function(item) {
+		return [
+			item[0],
+			item[1]*1
+		];
+	});
+	var buffer 		= _.map(options.data, function(item) {
+		return [
+			item[0],
+			item[1]*1
+		];
+	});
+	
+	var MSE	= 0;
+	var n = 0;
+	for (i=options.sample;i<l-1;i++) {
+		var sample 		= buffer.slice(i-options.sample, i);
+		// Get the AR coeffs
+		var coeffs 		= this[options.method]({degree:options.degree, data:sample});
+		var knownValue 	= buffer[i+1][1]*1;
+		buffer[i+1][1]	= 0;
+		for (j=0;j<coeffs.length;j++) {
+			if (options.method == 'ARMaxEntropy') {
+				buffer[i+1][1] -= backup[i-j][1]*coeffs[j];
+			} else {
+				buffer[i+1][1] += backup[i-j][1]*coeffs[j];
+			}
+		}
+		
+		MSE += (knownValue-buffer[i+1][1])*(knownValue-buffer[i+1][1]);
+		n++;
+	}
+	
+	MSE /= n;
+	
+	
+	//this.data = buffer;
+	
+	// Put back the mean
+	//this.offset(mean);
+	
+	return MSE;
 }
 timeseries.prototype.sliding_regression_forecast = function(options) {
 	options = _.extend({
@@ -1159,4 +1289,4 @@ adapter.tan = function(options) {
 
 exports.main		= timeseries;
 exports.adapter		= adapter;
-exports.version		= "1.2.0";
+exports.version		= "1.0.11";

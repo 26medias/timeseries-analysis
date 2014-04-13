@@ -391,6 +391,48 @@ var chart_url = t.chart({main:true,points:[{color:'ff0000',point:21,serie:0}]});
 ![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,21.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:rqqqpponmlkjihfedbaZYYXXYZacfhloswz35899852yupjcVRNLLNRVafknpqokfaVQONORWbgloulaMWXZdjqwzzvpgXRMMQYiqsphYROOSZgnxeTDXhow0zsiYRQWgotrlYNOWgoybcLdqxxpdTRWhqupcVTbiqvhWQkzphLEQhstjXRUentaUVs2ufORguugUUgqxcSWtrQACZslYOTfnmSWq1xfSaqvhRSismSauylQSmynVUjtmVasvcNSqraRf,rqqqpponmlkjihfedbaZYYXXYZacfhloswz35899863ytnhcWSPNNORVafjnppnkfaVRONORVbglrojeaYYbhpy5984vkaSNNSZhnpmgZSNNSZgrmfZXbju496wjWOOUempkcSNOVfrlcYakx78yiTNRcmpiXOOVgrjaYfu68wdPOYlphVNQbriZZl29zfPPbnnbPOZrhYbs76nSNZnmZOQergXey9yaNVloaORgrfXi38pRPfpfPQfrfYm64fNWnlUNb&chco=76a4fb,ac7cc7&chds=-334.6878609191184,286.52738649942415&chxr=0,-334.6878609191184,286.52738649942415,10)
 
 
+Now, let's try the forecasting on real data, using the stock price of Facebook ($FB):
+```
+// We fetch the financial data from MongoDB, then use adapter.fromDB() to load that data
+var t     	= new ts.main(ts.adapter.fromDB(financial_data));
+// Now we remove the noise from the data and save that noiseless data so we can display it on the chart
+t.smoother({period:4}).save('smoothed');
+// Now that the data is without noise, we use the sliding window forecasting
+t.sliding_regression_forecast({sample:20, degree: 5});
+/ Now we chart the data, including the original financial data (purple), the noiseless data (pink), and the forecast (blue)
+var chart_url = t.chart({main:true,points:[{color:'ff0000',point:20,serie:0}]});
+```
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,20.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:JJIGFEEDDEEFFGHIJKMOQSUVWYaaaZYXYZabbbbccccccbaZYZbdgijlmopqsuvxy01222212344555433221zyvsqommmkihhhggff,JJJCDEEDACEFFEJIHJMKQTUXYXXdddYUWWWcdecdZddcafcaWUXUkolonnsqtsyyy04164321z28649562z231yyrtjkijoohbbengf,JJIGFEEDDEEFFGHIJKMOQSTVXYZZZYYYYZabbbcccccccbaYYacehikmnoqrtuwyz01222223345555433210zxusqonmljihhhggff&chco=76a4fb,9a89d8,bd6eb6&chds=44.82,72.03&chxr=0,44.82,72.03,10)
+
+
+#### Forecasting optimization ####
+Exploring which degree to use, which method to use (Least Square or Max Entropy) and which sample size to use is time consumming, and you might not find the best settings by yourself.
+
+Thats why there is a method that will incrementally search for the best settings, that will lead to the lowest MSE.
+
+We'll use the $FB chart again, with its noise removed.
+
+```
+// We fetch the financial data from MongoDB, then use adapter.fromDB() to load that data
+var t         = new ts.main(ts.adapter.fromDB(financial_data));
+
+// Now we remove the noise from the data and save that noiseless data so we can display it on the chart
+t.smoother({period:4}).save('smoothed');
+
+// Find the best settings for the forecasting:
+var bestSettings = t.regression_forecast_optimize(); // returns { MSE: 0.05086675645862624, method: 'ARMaxEntropy', degree: 4, sample: 20 }
+
+// Apply those settings to forecast the n+1 value
+t.sliding_regression_forecast({
+	sample:		bestSettings.sample,
+	degree: 	bestSettings.degree,
+	method: 	bestSettings.method
+});
+
+// Chart the data, with a red dot where the forecasting starts
+var chart_url = t.chart({main:false,points:[{color:'ff0000',point:bestSettings.sample,serie:0}]});
+```
+![chart](https://chart.googleapis.com/chart?chm=s,ff0000,0,20.0,5.0&cht=lc&chs=800x200&chxt=y&chd=s:GGFDCBAAABBCDEFGHJMOQSTVXZZZYXWXYZabbbbbbbccbZYXYbdgikmopqsuwxz13455554567899987665420xurpnnnlihhhhggf,GGFDCBAAABBCDEFGHJMOQSUVXYYYXXXXYZaabbbbbccbaZYYZbehjlnoqrtvxy02345555566789987765431zwurponmkihhhhgff&chco=76a4fb,ac7cc7&chds=46.4829833984375,70.43257814447117&chxr=0,46.4829833984375,70.43257814447117,10)
 
 
 
