@@ -437,4 +437,4 @@ var chart_url = t.chart({main:false,points:[{color:'ff0000',point:bestSettings.s
 
 
 ## License ##
-timeseries-analysis is free for non-commercial use under the [Creative Commons Attribution-NonCommercial 3.0 License](http://creativecommons.org/licenses/by-nc/3.0/legalcode). You are also allowed to edit the source code that is included along with the download. If you are a non-profit, student or an educational institute, feel free to download and use it in your projects.
+MIT
