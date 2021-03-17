@@ -319,6 +319,28 @@ Based on the value of the first 10 datapoints of the sin wave, out forecast indi
 
 As we can see on the chart, the 11th datapoint's value seems to be around 92, as was forecasted.
 
+We can also use `regression_forecast` method, which will using regression to forecast n datapoints based on defined sample from dataset. For resulting forecast datapoint same as above, we will first define the options:
+```
+var options = {
+        n: 1, // How many data points to be forecasted
+        sample: 10, // How many datapoints to be training dataset
+        start: 11, // Initial forecasting position 
+        // method: "ARMaxEntropy", // What method for forecasting
+        // degree: 5, // How many degree for forecasting
+        // growthSampleMode: false, // Is the sample use only last x data points or up to entire data points?
+    }
+```
+
+Now, we generate the regression forecast on the data, then it resulted the MSE & trained data:
+```
+var MSE = t.regression_forecast(options)
+
+console.log(MSE) // 0.000022902164211893183
+console.log(t.data[10][1]) // 93.97404769915791
+```
+
+Based on the value of the first 10 datapoints of the sin wave, out forecast indicates the 11th value is 93.97404769915791. This interesting because the 11th observed real datapoint value is 93.96926207859084, which means it seems as was forecasted.
+
 
 #### Forecast accuracy ####
 In order to check the forecast accuracy on more complex data, you can access the `sliding_regression_forecast` method, which will use a sliding window to forecast all of the datapoints in your dataset, one by one. You can then chart this forecast and compare it t the original data.
