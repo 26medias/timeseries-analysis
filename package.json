@@ -6,13 +6,13 @@
 	},
 	"name": "timeseries-analysis",
 	"description": "timeseries-analysis",
-	"version": "1.0.11",
+	"version": "1.0.12",
 	"homepage": "https://github.com/26medias/timeseries-analysis",
 	"licenses": [
-	{
-		"type": "MIT",
-		"url": "https://raw.github.com/26medias/timeseries-analysis/master/LICENSE"
-	}
+		{
+			"type": "MIT",
+			"url": "https://raw.github.com/26medias/timeseries-analysis/master/LICENSE"
+		}
 	],
 	"repository": {
 		"type": "git",
@@ -31,6 +31,6 @@
 	"bugs": {
 		"url": "https://github.com/26medias/timeseries-analysis/issues"
 	},
-	"_id": "timeseries-analysis@1.0.11",
+	"_id": "timeseries-analysis@1.0.12",
 	"_from": "timeseries-analysis@latest"
 }
