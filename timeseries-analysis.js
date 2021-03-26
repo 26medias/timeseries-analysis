@@ -1,6 +1,5 @@
 var _ = require("underscore");
 var gimage = require("google-image-chart").charts;
-var moment = require("moment");
 
 var timeseries = function (data, options) {
   /*
@@ -621,6 +620,8 @@ timeseries.prototype.regression_forecast = function (options) {
       degree: 5,
       // Is the training only use last x sample data points or up to entire data points?
       growthSampleMode: false,
+      // Real data to be used.
+      data: this.data,
     },
     options
   );
@@ -634,12 +635,13 @@ timeseries.prototype.regression_forecast = function (options) {
   options.n = options.n === null ? l - options.sample : options.n;
 
   // Remove the mean.
-  var mean = this.mean();
-  this.offset(-mean);
+  var mean = this.mean(options.data);
+  options.data = this.offset(-mean, options.data, true);
 
   // Temporary working datasets.
-  // var backup 	= this.clone();
-  var buffer = this.clone();
+  var buffer = _.map(options.data, function (item) {
+    return [item[0], item[1] * 1];
+  });
 
   // MSE atributtes.
   var knownValue = NaN;
@@ -647,7 +649,9 @@ timeseries.prototype.regression_forecast = function (options) {
   var MSE = 0;
 
   // Get different interval of time attribute from dataset.
-  var timeDiff = Math.abs(buffer[1][0] - buffer[0][0]);
+  var timeDiff = Math.abs(
+    new Date(buffer[1][0]).getTime() - new Date(buffer[0][0]).getTime()
+  );
 
   for (var i = options.start - 1; i < options.start + options.n - 1; i++) {
     // Get sample as training dataset.
@@ -655,11 +659,8 @@ timeseries.prototype.regression_forecast = function (options) {
       ? buffer.slice(i - options.sample - (i - (options.start - 1)), i)
       : buffer.slice(i - options.sample, i);
 
-    // The current dataset when training is only a sample.
-    this.data = sample;
-
-    // Get the AR coeffs.
-    var coeffs = this[options.method]({ degree: options.degree });
+    // Get the AR coeffs from current sample dataset.
+    var coeffs = this[options.method]({ degree: options.degree, data: sample });
 
     // console.log({i, buffer: buffer.map(val=>[val[0], val[1]+mean]), coeffs, data: this.data.map(val=>[val[0], val[1]+mean])})
 
@@ -668,7 +669,10 @@ timeseries.prototype.regression_forecast = function (options) {
       knownValue = buffer[i][1] * 1;
       buffer[i][1] = 0;
     } else {
-      buffer.push([new Date(new Date(buffer[i - 1][0]) + timeDiff), 0]);
+      buffer.push([
+        new Date(new Date(buffer[i - 1][0]).getTime() + timeDiff),
+        0,
+      ]);
     }
 
     // Get forecasted datapoint.
@@ -1092,7 +1096,7 @@ timeseries.prototype.regression_analysis = function (options) {
   for (i = 0; i < theList.length - 1; i++) {
     for (j = i + 1; j < theList.length; j++) {
       if (theList[j] < theList[i]) {
-        temp = theList[i];
+        var temp = theList[i];
         theList[i] = theList[j];
         theList[j] = temp;
       }
@@ -1348,4 +1352,4 @@ adapter.tan = function (options) {
 
 exports.main = timeseries;
 exports.adapter = adapter;
-exports.version = "1.0.12";
+exports.version = "1.0.13";
